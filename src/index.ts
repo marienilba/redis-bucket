@@ -13,11 +13,14 @@ const client = createClient({
 
 client.connect();
 
-const server = fastify({ logger: process.env.NODENV !== "production" });
+const server = fastify({
+  logger: process.env.NODENV !== "production",
+  bodyLimit: 1048576 * 1000,
+});
 server.register(multipart, {
   limits: {
     files: 1,
-    fileSize: 1048576,
+    fileSize: 1048576 * 1000,
   },
 });
 server.register(cors, {
