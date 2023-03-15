@@ -2,21 +2,22 @@ import * as dotenv from "dotenv";
 dotenv.config();
 import fastify from "fastify";
 import multipart, { MultipartFile } from "@fastify/multipart";
+import cors from "@fastify/cors";
 
-import { createClient } from "redis";
+import { commandOptions, createClient } from "redis";
 import { nanoid } from "nanoid";
 
 const client = createClient({
-  url:
-    process.env.REDIS_URL +
-    "@" +
-    process.env.REDISHOST +
-    ":" +
-    process.env.REDISPORT,
+  url: process.env.REDIS_URL,
 });
+
+client.connect();
 
 const server = fastify({ logger: process.env.NODENV !== "production" });
 server.register(multipart);
+server.register(cors, {
+  origin: "*",
+});
 
 server.get("/uptime", (req, reply) => {
   reply.send({ time: process.uptime() });
@@ -24,11 +25,14 @@ server.get("/uptime", (req, reply) => {
 
 type FileInfo = {
   length: number;
-} & Omit<MultipartFile, "file" | "toBuffer" | "type">;
+} & Omit<MultipartFile, "file" | "toBuffer" | "type" | "fields">;
 
 server.post("/upload", async (req, reply) => {
   const file = await req.file();
-  if (!file) return;
+  if (!file) {
+    reply.status(400).send();
+    return;
+  }
 
   const id = nanoid();
   const buffer = await file.toBuffer();
@@ -48,7 +52,6 @@ server.post("/upload", async (req, reply) => {
   const infos: FileInfo = {
     encoding: file.encoding,
     fieldname: file.fieldname,
-    fields: file.fields,
     length: chunks.length,
     mimetype: file.mimetype,
     filename: file.filename,
@@ -57,7 +60,7 @@ server.post("/upload", async (req, reply) => {
   await client.set(`${id}`, JSON.stringify(infos));
 
   chunks.forEach(async (chunk, index) => {
-    await client.set(`${id}|${index}`, chunk.toString());
+    await client.set(`${id}|${index}`, chunk);
   });
 
   reply.status(200).send({ id: id });
@@ -76,9 +79,14 @@ server.get("/file/:id", async (req, reply) => {
     .fill(null)
     .map((_, index) => `${id}|${index}`);
 
-  const chunks = (await client.mGet(keys))
-    .filter((c) => Boolean(c))
-    .map((s) => Buffer.from(s!));
+  const chunks = (
+    await client.mGet(
+      commandOptions({
+        returnBuffers: true,
+      }),
+      keys
+    )
+  ).filter((c) => Boolean(c)) as Buffer[];
 
   const chunk = Buffer.concat(chunks);
   reply.header(

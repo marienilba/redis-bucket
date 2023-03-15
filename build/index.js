@@ -30,21 +30,26 @@ const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const fastify_1 = __importDefault(require("fastify"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
+const cors_1 = __importDefault(require("@fastify/cors"));
 const redis_1 = require("redis");
 const nanoid_1 = require("nanoid");
 const client = (0, redis_1.createClient)({
-    url: process.env.REDIS_URL +
-        "@" +
-        process.env.REDISHOST +
-        ":" +
-        process.env.REDISPORT,
+    url: "redis://default:********@containers-us-west-25.railway.app:7845",
 });
 const server = (0, fastify_1.default)({ logger: process.env.NODENV !== "production" });
 server.register(multipart_1.default);
+server.register(cors_1.default, {
+    origin: "*",
+});
+server.get("/uptime", (req, reply) => {
+    reply.send({ time: process.uptime() });
+});
 server.post("/upload", async (req, reply) => {
     const file = await req.file();
-    if (!file)
+    if (!file) {
+        reply.status(400).send();
         return;
+    }
     const id = (0, nanoid_1.nanoid)();
     const buffer = await file.toBuffer();
     const maxChunkSize = 512 * 1024 * 1024; // 512Mb in bytes
@@ -60,7 +65,6 @@ server.post("/upload", async (req, reply) => {
     const infos = {
         encoding: file.encoding,
         fieldname: file.fieldname,
-        fields: file.fields,
         length: chunks.length,
         mimetype: file.mimetype,
         filename: file.filename,
