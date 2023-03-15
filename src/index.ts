@@ -18,7 +18,7 @@ const client = createClient({
 const server = fastify({ logger: process.env.NODENV !== "production" });
 server.register(multipart);
 
-server.get("uptime", (req, reply) => {
+server.get("/uptime", (req, reply) => {
   reply.send({ time: process.uptime() });
 });
 
