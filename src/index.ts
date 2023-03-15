@@ -1,3 +1,5 @@
+import * as dotenv from "dotenv";
+dotenv.config();
 import fastify from "fastify";
 import multipart, { MultipartFile } from "@fastify/multipart";
 
@@ -15,6 +17,10 @@ const client = createClient({
 
 const server = fastify({ logger: process.env.NODENV !== "production" });
 server.register(multipart);
+
+server.get("uptime", (req, reply) => {
+  reply.send({ time: process.uptime() });
+});
 
 type FileInfo = {
   length: number;
