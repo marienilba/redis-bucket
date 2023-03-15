@@ -14,7 +14,12 @@ const client = createClient({
 client.connect();
 
 const server = fastify({ logger: process.env.NODENV !== "production" });
-server.register(multipart);
+server.register(multipart, {
+  limits: {
+    files: 1,
+    fileSize: 1048576,
+  },
+});
 server.register(cors, {
   origin: "*",
 });
