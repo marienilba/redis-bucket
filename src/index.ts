@@ -106,7 +106,7 @@ server.get("/file/:id", async (req, reply) => {
 });
 
 server.delete("/all", (req, reply) => {
-  const key = (req.body as { key?: string }).key;
+  const key = JSON.parse(req.body as string).key as string;
   if (!key || key !== process.env.SECURITY_KEY) {
     reply.status(400).send();
   }
