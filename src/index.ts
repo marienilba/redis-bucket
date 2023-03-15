@@ -68,10 +68,16 @@ server.post("/upload", async (req, reply) => {
 
 server.get("/file/:id", async (req, reply) => {
   const id = (req.params as { id: string }).id;
-  if (!id) return;
+  if (!id) {
+    reply.status(400).send();
+    return;
+  }
 
   const f = await client.get(`${id}`);
-  if (!f) return;
+  if (!f) {
+    reply.status(400).send();
+    return;
+  }
 
   const infos = JSON.parse(f) as FileInfo;
 
@@ -97,6 +103,15 @@ server.get("/file/:id", async (req, reply) => {
   reply.type(infos.mimetype);
 
   reply.status(200).send(chunk);
+});
+
+server.delete("/all", (req, reply) => {
+  const key = (req.body as { key?: string }).key;
+  if (!key || key !== process.env.SECURITY_KEY) {
+    reply.status(400).send();
+  }
+
+  client.flushAll();
 });
 
 server.listen(
